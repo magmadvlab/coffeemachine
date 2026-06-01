@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
+import { getSessionOperatore } from "@/lib/operator-server";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request, { params }: { params: { token: string } }) {
+/**
+ * L'operatore registra l'esito del preventivo (deciso dal cliente offline):
+ * accettato → in lavorazione; rifiutato → abbandonata.
+ */
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   if (!hasServiceConfig()) {
     return NextResponse.json({ error: "Configurazione Supabase incompleta" }, { status: 503 });
   }
@@ -15,15 +20,20 @@ export async function POST(req: Request, { params }: { params: { token: string }
   }
 
   const db = createServiceClient();
-  const patch = azione === "accetta"
-    ? { preventivo_accettato: true, stato: "in_riparazione" }
-    : { preventivo_accettato: false, stato: "non_riparabile" };
+  const operatore = await getSessionOperatore(db);
+  if (!operatore) {
+    return NextResponse.json({ error: "Operatore non collegato all'utente. Contatta l'amministratore." }, { status: 403 });
+  }
+
+  const patch =
+    azione === "accetta"
+      ? { preventivo_accettato: true, stato: "in_riparazione", operatore_id: operatore.id }
+      : { preventivo_accettato: false, stato: "abbandonata", operatore_id: operatore.id };
 
   const { data, error } = await db
     .from("riparazioni")
     .update(patch)
-    .eq("token_pubblico", params.token)
-    .eq("stato", "attesa_preventivo")
+    .eq("id", params.id)
     .select("id, numero_scheda, preventivo_accettato, stato")
     .single();
 
@@ -34,11 +44,11 @@ export async function POST(req: Request, { params }: { params: { token: string }
   await db.from("notifiche").insert({
     riparazione_id: data.id,
     tipo: azione === "accetta" ? "preventivo_accettato" : "preventivo_rifiutato",
-    canale: "web",
-    destinatario: "cliente",
+    canale: "interno",
+    destinatario: "operatore",
     stato_invio: "inviata",
     inviata_at: new Date().toISOString(),
-    payload: { azione },
+    payload: { azione, operatore: operatore.nome },
   });
 
   return NextResponse.json({ riparazione: data });

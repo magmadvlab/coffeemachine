@@ -2,7 +2,6 @@ import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { stadioCliente } from "@/lib/types";
 import { notFound } from "next/navigation";
 import { Check } from "lucide-react";
-import { QuoteDecision } from "@/components/QuoteDecision";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +76,6 @@ export default async function Tracking({ params }: { params: { token: string } }
             <div className="mt-6 rounded-xl bg-arancio/10 p-4">
               <p className="text-xs uppercase tracking-wide text-arancio-dark">Preventivo</p>
               <p className="text-lg font-bold text-arancio-dark">€ {Number(data.importo_preventivo).toFixed(2)}</p>
-              {data.stato === "attesa_preventivo" && data.preventivo_accettato == null && (
-                <QuoteDecision token={params.token} />
-              )}
               {data.preventivo_accettato === true && (
                 <p className="mt-3 rounded-lg bg-green-100 px-3 py-2 text-sm font-semibold text-green-800">
                   Preventivo accettato.
