@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createServiceClient, missingServerEnv } from "@/lib/supabase/server";
+import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
 import { stadioCliente, type RiparazioneRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ const stadioColore: Record<string, string> = {
 };
 
 export default async function Dashboard() {
-  const missingEnv = missingServerEnv();
+  const missingEnv = missingSupabaseEnv();
 
   if (missingEnv.length > 0) {
     return (

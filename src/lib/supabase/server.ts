@@ -1,20 +1,16 @@
 import { createClient as createSupaClient } from "@supabase/supabase-js";
 
-const REQUIRED_SERVER_ENV = [
+const REQUIRED_SUPABASE_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
-  "RESEND_API_KEY",
-  "MAIL_FROM",
-  "NEXT_PUBLIC_APP_URL",
 ] as const;
 
-export function missingServerEnv() {
-  return REQUIRED_SERVER_ENV.filter((key) => !process.env[key]);
+export function missingSupabaseEnv() {
+  return REQUIRED_SUPABASE_ENV.filter((key) => !process.env[key]);
 }
 
 export function hasServiceConfig() {
-  return missingServerEnv().length === 0;
+  return missingSupabaseEnv().length === 0;
 }
 
 /**
@@ -23,7 +19,7 @@ export function hasServiceConfig() {
  */
 export function createServiceClient() {
   if (!hasServiceConfig()) {
-    throw new Error(`Configurazione Vercel incompleta: mancano ${missingServerEnv().join(", ")}`);
+    throw new Error(`Configurazione Supabase incompleta: mancano ${missingSupabaseEnv().join(", ")}`);
   }
 
   return createSupaClient(
