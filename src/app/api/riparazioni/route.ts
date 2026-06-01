@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { buildRicevutaPDF } from "@/lib/pdf/build";
 import { inviaRicevuta } from "@/lib/email";
 import type { NuovaAccettazione } from "@/lib/types";
@@ -7,6 +7,10 @@ import type { NuovaAccettazione } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  if (!hasServiceConfig()) {
+    return NextResponse.json({ error: "Supabase non configurato su Vercel" }, { status: 503 });
+  }
+
   const body = (await req.json()) as NuovaAccettazione;
   const db = createServiceClient();
 

@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { stadioCliente } from "@/lib/types";
 import { notFound } from "next/navigation";
 
@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 const STADI = ["Preventivo", "In lavorazione", "Pronta per il ritiro"];
 
 export default async function Tracking({ params }: { params: { token: string } }) {
+  if (!hasServiceConfig()) notFound();
+
   const db = createServiceClient();
   const { data } = await db
     .from("riparazioni")
