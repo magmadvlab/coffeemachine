@@ -8,6 +8,11 @@ const config: Config = {
           50: "#faf7f4", 100: "#f1e9e2", 200: "#e3d4c6",
           400: "#b9968a", 600: "#7a5240", 700: "#5b3a29", 900: "#2b2320",
         },
+        arancio: {
+          DEFAULT: "#E8731C",
+          light: "#F59E3B",
+          dark: "#C75E12",
+        },
       },
       fontFamily: {
         display: ["Fraunces", "Georgia", "serif"],
