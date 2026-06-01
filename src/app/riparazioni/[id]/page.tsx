@@ -57,12 +57,12 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
       <header className="mb-4 flex items-center gap-3">
         <Link
           href="/"
-          aria-label="Indietro"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-coffee-200 bg-white text-coffee-700 active:scale-95"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-coffee-200 bg-white px-3 text-sm font-semibold text-coffee-700 active:scale-95"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
+          <span>Schede</span>
         </Link>
-        <div>
+        <div className="min-w-0">
           <p className="font-mono text-sm font-bold text-arancio-dark">{data.numero_scheda}</p>
           <h1 className="font-display text-xl font-bold text-coffee-900">Dettaglio assistenza</h1>
         </div>
@@ -180,6 +180,16 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
             )}
           </Card>
         </aside>
+      </div>
+
+      <div className="mt-5">
+        <Link
+          href="/"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-coffee-200 bg-white px-4 py-3 text-sm font-semibold text-coffee-700 active:scale-[0.99] sm:w-auto"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Torna alle schede
+        </Link>
       </div>
     </main>
   );

@@ -8,10 +8,10 @@ export default function NuovaScheda() {
       <header className="mb-4 flex items-center gap-3 sm:mb-5">
         <Link
           href="/"
-          aria-label="Indietro"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-coffee-200 bg-white text-coffee-700 active:scale-95"
+          className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-coffee-200 bg-white px-3 text-sm font-semibold text-coffee-700 active:scale-95"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
+          <span>Schede</span>
         </Link>
         <img src="/symbol.png" alt="" className="h-7 w-auto" />
         <h1 className="font-display text-lg font-bold text-coffee-900 sm:text-xl">Nuova accettazione</h1>
