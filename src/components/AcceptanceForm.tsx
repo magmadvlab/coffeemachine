@@ -1,16 +1,41 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { NuovaAccettazione, StatoEstetico, TipoMacchina, Canale } from "@/lib/types";
+import type { NuovaAccettazione, TipoMacchina } from "@/lib/types";
 
 const ACCESSORI = ["Serbatoio", "Vassoio", "Cavo alim.", "Portacialde"];
+
+type StoricoRiparazione = {
+  id: string;
+  numero_scheda: string | null;
+  stato: string;
+  data_ingresso: string;
+  difetto_cliente: string | null;
+  diagnosi_tecnico: string | null;
+  importo_finale: number | null;
+  importo_preventivo: number | null;
+};
+
+type StoricoMacchina = {
+  macchina: {
+    marca: string | null;
+    modello: string | null;
+    matricola: string | null;
+    tipologia: TipoMacchina | null;
+    colore: string | null;
+    cliente?: { ragione_sociale?: string | null; telefono?: string | null; email?: string | null } | null;
+  } | null;
+  riparazioni: StoricoRiparazione[];
+};
 
 export default function AcceptanceForm() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [storico, setStorico] = useState<StoricoMacchina | null>(null);
+  const [storicoStatus, setStoricoStatus] = useState<"idle" | "loading" | "done" | "empty" | "error">("idle");
 
   const [f, setF] = useState<NuovaAccettazione>({
     cliente: { tipo: "privato", ragione_sociale: "", telefono: "", email: "",
@@ -35,6 +60,54 @@ export default function AcceptanceForm() {
     });
 
   const mostraFoto = f.scheda.stato_estetico === "graffi" || f.scheda.stato_estetico === "danni";
+  const matricola = f.macchina.matricola?.trim() ?? "";
+
+  useEffect(() => {
+    if (matricola.length < 3) {
+      setStorico(null);
+      setStoricoStatus("idle");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setStoricoStatus("loading");
+      try {
+        const res = await fetch(`/api/macchine/storico?matricola=${encodeURIComponent(matricola)}`, {
+          signal: controller.signal,
+        });
+        const data = (await res.json()) as StoricoMacchina & { error?: string };
+        if (!res.ok) throw new Error(data.error || "Errore ricerca storico");
+
+        setStorico(data);
+        setStoricoStatus(data.riparazioni.length > 0 ? "done" : "empty");
+      } catch (e: any) {
+        if (e.name !== "AbortError") {
+          setStorico(null);
+          setStoricoStatus("error");
+        }
+      }
+    }, 450);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [matricola]);
+
+  const usaDatiStorico = () => {
+    if (!storico?.macchina) return;
+    setF((prev) => ({
+      ...prev,
+      macchina: {
+        ...prev.macchina,
+        marca: storico.macchina?.marca ?? prev.macchina.marca,
+        modello: storico.macchina?.modello ?? prev.macchina.modello,
+        colore: storico.macchina?.colore ?? prev.macchina.colore,
+        tipologia: storico.macchina?.tipologia ?? prev.macchina.tipologia,
+      },
+    }));
+  };
 
   async function submit() {
     setErrore(null);
@@ -63,18 +136,18 @@ export default function AcceptanceForm() {
     }
   }
 
-  const inputCls = "w-full rounded-lg border border-coffee-200 bg-white px-3 py-2.5 text-coffee-900 outline-none focus:border-coffee-600";
+  const inputCls = "w-full rounded-lg border border-coffee-200 bg-white px-3 py-3 text-base text-coffee-900 outline-none focus:border-coffee-600 sm:py-2.5 sm:text-sm";
   const labelCls = "mb-1 block text-xs font-semibold uppercase tracking-wide text-coffee-400";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* CLIENTE */}
-      <section className="rounded-xl border border-coffee-100 bg-white p-4">
+      <section className="rounded-xl border border-coffee-100 bg-white p-4 sm:p-5">
         <h2 className="mb-3 font-display text-lg font-semibold text-coffee-700">Cliente</h2>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 grid grid-cols-2 gap-2">
           {(["privato", "azienda"] as const).map((t) => (
             <button key={t} type="button" onClick={() => set("cliente.tipo", t)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+              className={`rounded-lg border px-3 py-3 text-sm font-medium capitalize sm:py-2 ${
                 f.cliente.tipo === t ? "border-coffee-600 bg-coffee-50 text-coffee-700" : "border-coffee-200 text-coffee-400"}`}>
               {t}
             </button>
@@ -86,7 +159,7 @@ export default function AcceptanceForm() {
             <input className={inputCls} value={f.cliente.ragione_sociale}
               onChange={(e) => set("cliente.ragione_sociale", e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><label className={labelCls}>Telefono</label>
               <input className={inputCls} value={f.cliente.telefono}
                 onChange={(e) => set("cliente.telefono", e.target.value)} /></div>
@@ -98,18 +171,72 @@ export default function AcceptanceForm() {
       </section>
 
       {/* MACCHINA */}
-      <section className="rounded-xl border border-coffee-100 bg-white p-4">
+      <section className="rounded-xl border border-coffee-100 bg-white p-4 sm:p-5">
         <h2 className="mb-3 font-display text-lg font-semibold text-coffee-700">Macchina</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>Marca</label>
-            <input className={inputCls} onChange={(e) => set("macchina.marca", e.target.value)} /></div>
+            <input className={inputCls} value={f.macchina.marca ?? ""}
+              onChange={(e) => set("macchina.marca", e.target.value)} /></div>
           <div><label className={labelCls}>Modello</label>
-            <input className={inputCls} onChange={(e) => set("macchina.modello", e.target.value)} /></div>
+            <input className={inputCls} value={f.macchina.modello ?? ""}
+              onChange={(e) => set("macchina.modello", e.target.value)} /></div>
           <div><label className={labelCls}>Matricola</label>
-            <input className={inputCls} onChange={(e) => set("macchina.matricola", e.target.value)} /></div>
+            <input className={inputCls} value={f.macchina.matricola ?? ""}
+              autoComplete="off" onChange={(e) => set("macchina.matricola", e.target.value)} /></div>
           <div><label className={labelCls}>Colore</label>
-            <input className={inputCls} onChange={(e) => set("macchina.colore", e.target.value)} /></div>
+            <input className={inputCls} value={f.macchina.colore ?? ""}
+              onChange={(e) => set("macchina.colore", e.target.value)} /></div>
         </div>
+
+        {storicoStatus !== "idle" && (
+          <div className="mt-4 border-t border-coffee-100 pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-coffee-400">Storico macchina</p>
+                {storicoStatus === "loading" && <p className="mt-1 text-sm text-coffee-400">Ricerca in corso...</p>}
+                {storicoStatus === "empty" && <p className="mt-1 text-sm text-coffee-400">Nessun intervento precedente trovato.</p>}
+                {storicoStatus === "error" && <p className="mt-1 text-sm text-red-700">Storico non disponibile.</p>}
+                {storicoStatus === "done" && storico && (
+                  <p className="mt-1 text-sm font-semibold text-coffee-700">
+                    {storico.riparazioni.length} intervent{storico.riparazioni.length === 1 ? "o" : "i"} precedente{storico.riparazioni.length === 1 ? "" : "i"}
+                  </p>
+                )}
+              </div>
+              {storico?.macchina && (
+                <button type="button" onClick={usaDatiStorico}
+                  className="shrink-0 rounded-lg border border-coffee-200 px-3 py-2 text-xs font-semibold text-coffee-700">
+                  Usa dati
+                </button>
+              )}
+            </div>
+
+            {storicoStatus === "done" && storico && (
+              <ul className="mt-3 divide-y divide-coffee-100 text-sm">
+                {storico.riparazioni.map((r) => (
+                  <li key={r.id} className="py-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-mono text-xs font-bold text-coffee-700">{r.numero_scheda ?? "Scheda"}</span>
+                      <span className="text-xs text-coffee-400">
+                        {new Date(r.data_ingresso).toLocaleDateString("it-IT")}
+                      </span>
+                      <span className="rounded-full bg-coffee-50 px-2 py-0.5 text-xs font-semibold text-coffee-600">
+                        {r.stato.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                    {r.difetto_cliente && <p className="mt-1 text-coffee-700">Segnalato: {r.difetto_cliente}</p>}
+                    {r.diagnosi_tecnico && <p className="mt-1 text-coffee-600">Fatto: {r.diagnosi_tecnico}</p>}
+                    {(r.importo_finale != null || r.importo_preventivo != null) && (
+                      <p className="mt-1 text-xs font-semibold text-coffee-600">
+                        Importo: € {Number(r.importo_finale ?? r.importo_preventivo).toFixed(2)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <div className="mt-3">
           <label className={labelCls}>Tipologia</label>
           <select className={inputCls} value={f.macchina.tipologia}
@@ -121,13 +248,13 @@ export default function AcceptanceForm() {
       </section>
 
       {/* STATO + GUASTO */}
-      <section className="rounded-xl border border-coffee-100 bg-white p-4">
+      <section className="rounded-xl border border-coffee-100 bg-white p-4 sm:p-5">
         <h2 className="mb-3 font-display text-lg font-semibold text-coffee-700">Stato e guasto</h2>
         <label className={labelCls}>Stato estetico all'ingresso</label>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 grid grid-cols-3 gap-2">
           {(["buono", "graffi", "danni"] as const).map((t) => (
             <button key={t} type="button" onClick={() => set("scheda.stato_estetico", t)}
-              className={`flex-1 rounded-lg border px-2 py-2 text-sm font-medium capitalize ${
+              className={`rounded-lg border px-2 py-3 text-sm font-medium capitalize sm:py-2 ${
                 f.scheda.stato_estetico === t ? "border-coffee-600 bg-coffee-50 text-coffee-700" : "border-coffee-200 text-coffee-400"}`}>
               {t}
             </button>
@@ -162,7 +289,7 @@ export default function AcceptanceForm() {
       </section>
 
       {/* GDPR */}
-      <label className="flex items-start gap-3 rounded-xl border border-coffee-100 bg-white p-4 text-sm">
+      <label className="flex items-start gap-3 rounded-xl border border-coffee-100 bg-white p-4 text-sm sm:p-5">
         <input type="checkbox" checked={f.cliente.consenso_gdpr} className="mt-0.5 h-5 w-5 accent-coffee-700"
           onChange={(e) => set("cliente.consenso_gdpr", e.target.checked)} />
         <span className="text-coffee-600">
@@ -173,10 +300,12 @@ export default function AcceptanceForm() {
 
       {errore && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{errore}</p>}
 
-      <button onClick={submit} disabled={saving}
-        className="w-full rounded-full bg-coffee-700 py-3.5 text-base font-semibold text-white shadow active:scale-[0.99] disabled:opacity-60">
-        {saving ? "Salvataggio…" : "Crea scheda e invia ricevuta"}
-      </button>
+      <div className="sticky bottom-0 -mx-4 bg-coffee-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:p-0">
+        <button onClick={submit} disabled={saving}
+          className="w-full rounded-full bg-coffee-700 py-3.5 text-base font-semibold text-white shadow active:scale-[0.99] disabled:opacity-60">
+          {saving ? "Salvataggio…" : "Crea scheda e invia ricevuta"}
+        </button>
+      </div>
     </div>
   );
 }
