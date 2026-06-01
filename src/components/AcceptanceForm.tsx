@@ -128,7 +128,10 @@ export default function AcceptanceForm() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       const out = await res.json();
-      if (!res.ok) throw new Error(out.error || "Errore salvataggio");
+      if (!res.ok) {
+        const detail = [out.error, out.details, out.hint].filter(Boolean).join(" ");
+        throw new Error(detail || "Errore salvataggio");
+      }
       router.push("/");
       router.refresh();
     } catch (e: any) {

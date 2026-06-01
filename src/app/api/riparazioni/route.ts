@@ -6,6 +6,15 @@ import type { NuovaAccettazione } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+function dbError(step: string, error: { message: string; code?: string; details?: string | null; hint?: string | null }) {
+  return NextResponse.json({
+    error: `${step}: ${error.message}`,
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+  }, { status: 400 });
+}
+
 export async function POST(req: Request) {
   if (!hasServiceConfig()) {
     return NextResponse.json({ error: "Configurazione Vercel incompleta" }, { status: 503 });
@@ -30,7 +39,7 @@ export async function POST(req: Request) {
     })
     .select("id")
     .single();
-  if (e1) return NextResponse.json({ error: e1.message }, { status: 400 });
+  if (e1) return dbError("Cliente", e1);
 
   // 2) macchina
   const { data: macchina, error: e2 } = await db
@@ -38,7 +47,7 @@ export async function POST(req: Request) {
     .insert({ cliente_id: cliente!.id, ...body.macchina })
     .select("id")
     .single();
-  if (e2) return NextResponse.json({ error: e2.message }, { status: 400 });
+  if (e2) return dbError("Macchina", e2);
 
   // 3) riparazione
   const { data: rip, error: e3 } = await db
@@ -53,7 +62,7 @@ export async function POST(req: Request) {
     })
     .select("id, numero_scheda, token_pubblico, data_ingresso")
     .single();
-  if (e3) return NextResponse.json({ error: e3.message }, { status: 400 });
+  if (e3) return dbError("Riparazione", e3);
 
   // 4) foto in ingresso (se caricata lato client su Storage)
   if (body.scheda.foto_path) {
