@@ -5,7 +5,22 @@ import StatusControl from "@/components/StatusControl";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, ExternalLink, Plus, Coffee, Search, ArrowRight } from "lucide-react";
+import { FileText, ExternalLink, Plus, Coffee, Search, ArrowRight, Building2, BadgeCheck } from "lucide-react";
+
+function RegimeChip({ regime }: { regime?: string | null }) {
+  if (!regime) return null;
+  const comodato = regime === "comodato_uso";
+  return (
+    <span
+      className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+        comodato ? "bg-amber-100 text-amber-800" : "bg-coffee-100 text-coffee-700"
+      }`}
+    >
+      {comodato ? <Building2 className="h-3 w-3" /> : <BadgeCheck className="h-3 w-3" />}
+      {comodato ? "Comodato d'uso" : "Di proprietà"}
+    </span>
+  );
+}
 
 function NuovaSchedaButton() {
   return (
@@ -147,6 +162,7 @@ export default async function Dashboard({ searchParams }: { searchParams?: { q?:
                       {[r.macchina?.marca, r.macchina?.modello].filter(Boolean).join(" ") || "Macchina n/d"}
                       {r.macchina?.matricola ? ` · ${r.macchina.matricola}` : ""}
                     </div>
+                    <RegimeChip regime={r.macchina?.regime_possesso} />
                   </div>
                   <Badge stadio={stadio} />
                 </div>
