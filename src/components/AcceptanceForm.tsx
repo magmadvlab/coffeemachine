@@ -8,7 +8,6 @@ const ACCESSORI = ["Serbatoio", "Vassoio", "Cavo alim.", "Portacialde"];
 
 export default function AcceptanceForm() {
   const router = useRouter();
-  const supa = createClient();
   const [saving, setSaving] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -47,6 +46,7 @@ export default function AcceptanceForm() {
       if (mostraFoto && fotoFile) {
         const ext = fotoFile.name.split(".").pop() || "jpg";
         foto_path = `ingresso/${crypto.randomUUID()}.${ext}`;
+        const supa = createClient();
         const { error } = await supa.storage.from("riparazioni-foto").upload(foto_path, fotoFile);
         if (error) throw new Error("Upload foto: " + error.message);
       }
