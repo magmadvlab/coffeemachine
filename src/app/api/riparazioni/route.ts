@@ -3,6 +3,7 @@ import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { buildRicevutaPDF } from "@/lib/pdf/build";
 import { inviaRicevuta } from "@/lib/email";
 import { getPublicAppUrl } from "@/lib/app-url";
+import { getOrCreateOperatore } from "@/lib/operator-server";
 import type { NuovaAccettazione } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as NuovaAccettazione;
   const db = createServiceClient();
+  let operatore = null;
+  try {
+    operatore = await getOrCreateOperatore(db, body.operatore_nome);
+  } catch (e: any) {
+    return dbError("Operatore", e);
+  }
   const clienteInput = {
     tipo: body.cliente.tipo,
     ragione_sociale: clean(body.cliente.ragione_sociale) ?? body.cliente.ragione_sociale,
@@ -155,6 +162,7 @@ export async function POST(req: Request) {
     .insert({
       cliente_id: cliente!.id,
       macchina_id: macchina!.id,
+      operatore_id: operatore?.id ?? null,
       stato: "ingresso",
       stato_estetico: body.scheda.stato_estetico,
       accessori: body.scheda.accessori,

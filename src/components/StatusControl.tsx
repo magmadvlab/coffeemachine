@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { StatoRiparazione } from "@/lib/types";
+import { getStoredOperatorName } from "@/components/OperatorName";
 
 const STATI: { value: StatoRiparazione; label: string }[] = [
   { value: "ingresso", label: "Ricevuta" },
@@ -33,7 +34,7 @@ export default function StatusControl({ id, stato }: { id: string; stato: StatoR
       const res = await fetch(`/api/riparazioni/${id}/stato`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stato: next }),
+        body: JSON.stringify({ stato: next, operatore_nome: getStoredOperatorName() }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error || "Aggiornamento stato non riuscito");

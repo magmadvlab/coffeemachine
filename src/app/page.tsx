@@ -5,7 +5,8 @@ import StatusControl from "@/components/StatusControl";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FileText, ExternalLink, Plus, Coffee, Search, ArrowRight, Building2, BadgeCheck } from "lucide-react";
+import { OperatorName } from "@/components/OperatorName";
+import { FileText, ExternalLink, Plus, Coffee, Search, ArrowRight, Building2, BadgeCheck, Bell } from "lucide-react";
 
 function RegimeChip({ regime }: { regime?: string | null }) {
   if (!regime) return null;
@@ -31,6 +32,18 @@ function NuovaSchedaButton() {
       <Plus className="h-4 w-4 shrink-0" />
       <span className="hidden sm:inline">Nuova scheda</span>
       <span className="sm:hidden">Nuova</span>
+    </Link>
+  );
+}
+
+function SollecitiButton() {
+  return (
+    <Link
+      href="/solleciti"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-coffee-200 bg-white px-3.5 py-2 text-sm font-semibold text-coffee-700 active:scale-95"
+    >
+      <Bell className="h-4 w-4 shrink-0" />
+      <span className="hidden sm:inline">Solleciti</span>
     </Link>
   );
 }
@@ -103,7 +116,18 @@ export default async function Dashboard({ searchParams }: { searchParams?: { q?:
 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-28 pt-6">
-      <BrandHeader action={<NuovaSchedaButton />} />
+      <BrandHeader
+        action={
+          <div className="flex items-center gap-2">
+            <SollecitiButton />
+            <NuovaSchedaButton />
+          </div>
+        }
+      />
+
+      <div className="mb-4">
+        <OperatorName />
+      </div>
 
       <form className="mb-4" action="/">
         <label className="sr-only" htmlFor="q">Cerca</label>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { inviaAggiornamentoStato } from "@/lib/email";
+import { getOrCreateOperatore } from "@/lib/operator-server";
 import type { StatoRiparazione } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -29,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Configurazione Supabase incompleta" }, { status: 503 });
   }
 
-  const body = (await req.json()) as { stato?: StatoRiparazione };
+  const body = (await req.json()) as { stato?: StatoRiparazione; operatore_nome?: string };
   if (!body.stato || !STATI.includes(body.stato)) {
     return NextResponse.json({ error: "Stato non valido" }, { status: 400 });
   }
@@ -42,6 +43,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (body.stato === "ritirata") patch.data_ritiro = now;
 
   const db = createServiceClient();
+  let operatore = null;
+  try {
+    operatore = await getOrCreateOperatore(db, body.operatore_nome);
+  } catch (e: any) {
+    return NextResponse.json({ error: `Operatore: ${e.message}` }, { status: 400 });
+  }
+
+  if (operatore && ["riparata", "cliente_avvisato", "non_riparabile"].includes(body.stato)) {
+    patch.operatore_id = operatore.id;
+  }
+
   const { data, error } = await db
     .from("riparazioni")
     .update(patch)

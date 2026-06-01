@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import type { NuovaAccettazione, RegimePossessoMacchina, TipoMacchina } from "@/lib/types";
+import { getStoredOperatorName } from "@/components/OperatorName";
 import { User, Coffee, ClipboardList } from "lucide-react";
 
 const ACCESSORI = ["Serbatoio", "Vassoio", "Cavo alim.", "Portacialde"];
@@ -12,10 +12,12 @@ type StoricoRiparazione = {
   numero_scheda: string | null;
   stato: string;
   data_ingresso: string;
+  data_riparazione: string | null;
   difetto_cliente: string | null;
   diagnosi_tecnico: string | null;
   importo_finale: number | null;
   importo_preventivo: number | null;
+  operatore?: { nome?: string | null } | { nome?: string | null }[] | null;
 };
 
 type StoricoMacchina = {
@@ -118,15 +120,11 @@ export default function AcceptanceForm() {
     if (!f.cliente.consenso_gdpr) { setErrore("Manca il consenso al trattamento dati (GDPR)."); return; }
     setSaving(true);
     try {
-      let foto_path: string | undefined;
-      if (mostraFoto && fotoFile) {
-        const ext = fotoFile.name.split(".").pop() || "jpg";
-        foto_path = `ingresso/${crypto.randomUUID()}.${ext}`;
-        const supa = createClient();
-        const { error } = await supa.storage.from("riparazioni-foto").upload(foto_path, fotoFile);
-        if (error) throw new Error("Upload foto: " + error.message);
-      }
-      const payload: NuovaAccettazione = { ...f, scheda: { ...f.scheda, foto_path } };
+      const payload: NuovaAccettazione = {
+        ...f,
+        operatore_nome: getStoredOperatorName(),
+        scheda: { ...f.scheda },
+      };
       const res = await fetch("/api/riparazioni", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
@@ -135,6 +133,16 @@ export default function AcceptanceForm() {
         const detail = [out.error, out.details, out.hint].filter(Boolean).join(" ");
         throw new Error(detail || "Errore salvataggio");
       }
+
+      if (mostraFoto && fotoFile) {
+        const form = new FormData();
+        form.set("file", fotoFile);
+        form.set("momento", "ingresso");
+        const photoRes = await fetch(`/api/riparazioni/${out.id}/foto`, { method: "POST", body: form });
+        const photoOut = await photoRes.json();
+        if (!photoRes.ok) throw new Error(`Scheda creata, ma upload foto non riuscito: ${photoOut.error}`);
+      }
+
       router.push("/");
       router.refresh();
     } catch (e: any) {
@@ -222,26 +230,35 @@ export default function AcceptanceForm() {
 
             {storicoStatus === "done" && storico && (
               <ul className="mt-3 divide-y divide-coffee-100 text-sm">
-                {storico.riparazioni.map((r) => (
-                  <li key={r.id} className="py-3">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-mono text-xs font-bold text-coffee-700">{r.numero_scheda ?? "Scheda"}</span>
-                      <span className="text-xs text-coffee-400">
-                        {new Date(r.data_ingresso).toLocaleDateString("it-IT")}
-                      </span>
-                      <span className="rounded-full bg-coffee-50 px-2 py-0.5 text-xs font-semibold text-coffee-600">
-                        {r.stato.replace(/_/g, " ")}
-                      </span>
-                    </div>
-                    {r.difetto_cliente && <p className="mt-1 text-coffee-700">Segnalato: {r.difetto_cliente}</p>}
-                    {r.diagnosi_tecnico && <p className="mt-1 text-coffee-600">Fatto: {r.diagnosi_tecnico}</p>}
-                    {(r.importo_finale != null || r.importo_preventivo != null) && (
-                      <p className="mt-1 text-xs font-semibold text-coffee-600">
-                        Importo: € {Number(r.importo_finale ?? r.importo_preventivo).toFixed(2)}
-                      </p>
-                    )}
-                  </li>
-                ))}
+                {storico.riparazioni.map((r) => {
+                  const operatore = Array.isArray(r.operatore) ? r.operatore[0] : r.operatore;
+                  return (
+                    <li key={r.id} className="py-3">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-mono text-xs font-bold text-coffee-700">{r.numero_scheda ?? "Scheda"}</span>
+                        <span className="text-xs text-coffee-400">
+                          {new Date(r.data_ingresso).toLocaleDateString("it-IT")}
+                        </span>
+                        <span className="rounded-full bg-coffee-50 px-2 py-0.5 text-xs font-semibold text-coffee-600">
+                          {r.stato.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      {r.data_riparazione && (
+                        <p className="mt-1 text-xs text-coffee-500">
+                          Riparata il {new Date(r.data_riparazione).toLocaleDateString("it-IT")}
+                          {operatore?.nome ? ` da ${operatore.nome}` : ""}
+                        </p>
+                      )}
+                      {r.difetto_cliente && <p className="mt-1 text-coffee-700">Segnalato: {r.difetto_cliente}</p>}
+                      {r.diagnosi_tecnico && <p className="mt-1 text-coffee-600">Fatto: {r.diagnosi_tecnico}</p>}
+                      {(r.importo_finale != null || r.importo_preventivo != null) && (
+                        <p className="mt-1 text-xs font-semibold text-coffee-600">
+                          Importo: € {Number(r.importo_finale ?? r.importo_preventivo).toFixed(2)}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

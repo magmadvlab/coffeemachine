@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AcceptanceForm from "@/components/AcceptanceForm";
+import { OperatorName } from "@/components/OperatorName";
 
 export default function NuovaScheda() {
   return (
@@ -16,6 +17,9 @@ export default function NuovaScheda() {
         <img src="/symbol.png" alt="" className="h-7 w-auto" />
         <h1 className="font-display text-lg font-bold text-coffee-900 sm:text-xl">Nuova accettazione</h1>
       </header>
+      <div className="mb-4">
+        <OperatorName />
+      </div>
       <AcceptanceForm />
     </main>
   );

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import StatusControl from "@/components/StatusControl";
+import { OperatorName } from "@/components/OperatorName";
+import { PhotoUploadForm } from "@/components/PhotoUploadForm";
+import { RepairWorkForm } from "@/components/RepairWorkForm";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
@@ -28,7 +31,8 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
     .select(`id, numero_scheda, token_pubblico, stato, data_ingresso, data_riparazione, data_avviso_cliente, data_ritiro,
       difetto_cliente, diagnosi_tecnico, stato_estetico, accessori, preventivo_richiesto, spesa_max_autorizzata, importo_preventivo, importo_finale,
       cliente:clienti(ragione_sociale, tipo, piva_cf, indirizzo, telefono, email, canale_preferito),
-      macchina:macchine(id, marca, modello, matricola, tipologia, colore, regime_possesso)`)
+      macchina:macchine(id, marca, modello, matricola, tipologia, colore, regime_possesso),
+      operatore:operatori(nome)`)
     .eq("id", params.id)
     .single();
 
@@ -36,6 +40,7 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
 
   const cliente: any = Array.isArray(data.cliente) ? data.cliente[0] : data.cliente;
   const macchina: any = Array.isArray(data.macchina) ? data.macchina[0] : data.macchina;
+  const operatore: any = Array.isArray(data.operatore) ? data.operatore[0] : data.operatore;
   const stadio = stadioCliente(data.stato as StatoRiparazione);
 
   const { data: notifiche } = await db
@@ -46,11 +51,24 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
 
   const { data: storico } = macchina?.id ? await db
     .from("riparazioni")
-    .select("id, numero_scheda, stato, data_ingresso, difetto_cliente, diagnosi_tecnico")
+    .select("id, numero_scheda, stato, data_ingresso, data_riparazione, difetto_cliente, diagnosi_tecnico, operatore:operatori(nome)")
     .eq("macchina_id", macchina.id)
     .neq("id", params.id)
     .order("data_ingresso", { ascending: false })
     .limit(10) : { data: [] };
+
+  const { data: fotoRows } = await db
+    .from("foto_riparazione")
+    .select("id, storage_path, momento, created_at")
+    .eq("riparazione_id", params.id)
+    .order("created_at", { ascending: true });
+
+  const foto = await Promise.all((fotoRows ?? []).map(async (row: any) => {
+    const { data: signed } = await db.storage
+      .from("riparazioni-foto")
+      .createSignedUrl(row.storage_path, 60 * 60);
+    return { ...row, url: signed?.signedUrl ?? null };
+  }));
 
   return (
     <main className="mx-auto max-w-4xl px-3 pb-24 pt-4 sm:px-4 sm:pt-6">
@@ -71,6 +89,8 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
+          <OperatorName />
+
           <Card className="sm:p-5">
             <h2 className="mb-3 font-display text-lg font-semibold text-coffee-900">Cliente</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -105,6 +125,7 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
               {field("Avviso cliente", data.data_avviso_cliente ? new Date(data.data_avviso_cliente).toLocaleDateString("it-IT") : null)}
               {field("Ritiro", data.data_ritiro ? new Date(data.data_ritiro).toLocaleDateString("it-IT") : null)}
               {field("Accessori", (data.accessori ?? []).join(", "))}
+              {field("Operatore", operatore?.nome)}
               {field("Preventivo previsto", data.preventivo_richiesto ? "Sì" : "No")}
               {field("Spesa max autorizzata", data.spesa_max_autorizzata != null ? `€ ${Number(data.spesa_max_autorizzata).toFixed(2)}` : null)}
               {field("Preventivo", data.importo_preventivo != null ? `€ ${Number(data.importo_preventivo).toFixed(2)}` : null)}
@@ -120,6 +141,40 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
                 <p className="mt-1 rounded-lg bg-coffee-50 p-3 text-sm text-coffee-700">{data.diagnosi_tecnico || "—"}</p>
               </div>
             </div>
+            <RepairWorkForm
+              id={data.id}
+              diagnosi={data.diagnosi_tecnico}
+              importoPreventivo={data.importo_preventivo}
+              importoFinale={data.importo_finale}
+            />
+          </Card>
+
+          <Card className="sm:p-5">
+            <h2 className="mb-3 font-display text-lg font-semibold text-coffee-900">Foto</h2>
+            {foto.length === 0 ? (
+              <p className="text-sm text-coffee-400">Nessuna foto registrata.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {foto.map((f: any) => (
+                  <a
+                    key={f.id}
+                    href={f.url ?? "#"}
+                    target="_blank"
+                    className="overflow-hidden rounded-xl border border-coffee-100 bg-coffee-50"
+                  >
+                    {f.url ? (
+                      <img src={f.url} alt={`Foto ${f.momento}`} className="aspect-square w-full object-cover" />
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center text-xs text-coffee-400">Non disponibile</div>
+                    )}
+                    <p className="px-2 py-1 text-xs font-semibold capitalize text-coffee-600">{f.momento}</p>
+                  </a>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 border-t border-coffee-100 pt-4">
+              <PhotoUploadForm id={data.id} />
+            </div>
           </Card>
 
           <Card className="sm:p-5">
@@ -128,16 +183,25 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
               <p className="text-sm text-coffee-400">Nessun altro intervento registrato.</p>
             ) : (
               <ul className="divide-y divide-coffee-100">
-                {(storico ?? []).map((r: any) => (
-                  <li key={r.id} className="py-3 text-sm">
-                    <Link href={`/riparazioni/${r.id}`} className="font-mono text-xs font-bold text-coffee-700 underline underline-offset-2">
-                      {r.numero_scheda}
-                    </Link>
-                    <span className="ml-2 text-coffee-400">{new Date(r.data_ingresso).toLocaleDateString("it-IT")}</span>
-                    <p className="mt-1 text-coffee-700">{r.difetto_cliente || "Difetto non indicato"}</p>
-                    {r.diagnosi_tecnico && <p className="mt-1 text-coffee-400">Fatto: {r.diagnosi_tecnico}</p>}
-                  </li>
-                ))}
+                {(storico ?? []).map((r: any) => {
+                  const storicoOperatore = Array.isArray(r.operatore) ? r.operatore[0] : r.operatore;
+                  return (
+                    <li key={r.id} className="py-3 text-sm">
+                      <Link href={`/riparazioni/${r.id}`} className="font-mono text-xs font-bold text-coffee-700 underline underline-offset-2">
+                        {r.numero_scheda}
+                      </Link>
+                      <span className="ml-2 text-coffee-400">{new Date(r.data_ingresso).toLocaleDateString("it-IT")}</span>
+                      {r.data_riparazione && (
+                        <span className="ml-2 text-coffee-400">
+                          Riparata il {new Date(r.data_riparazione).toLocaleDateString("it-IT")}
+                        </span>
+                      )}
+                      {storicoOperatore?.nome && <p className="mt-1 text-xs font-semibold text-coffee-500">Operatore: {storicoOperatore.nome}</p>}
+                      <p className="mt-1 text-coffee-700">{r.difetto_cliente || "Difetto non indicato"}</p>
+                      {r.diagnosi_tecnico && <p className="mt-1 text-coffee-400">Fatto: {r.diagnosi_tecnico}</p>}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Card>

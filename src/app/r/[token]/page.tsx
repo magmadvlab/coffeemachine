@@ -13,7 +13,7 @@ export default async function Tracking({ params }: { params: { token: string } }
   const db = createServiceClient();
   const { data } = await db
     .from("riparazioni")
-    .select(`numero_scheda, stato, importo_preventivo, data_ingresso,
+    .select(`id, numero_scheda, stato, importo_preventivo, data_ingresso,
              cliente:clienti(ragione_sociale),
              macchina:macchine(marca, modello)`)
     .eq("token_pubblico", params.token)
@@ -24,6 +24,19 @@ export default async function Tracking({ params }: { params: { token: string } }
   const macchina: any = Array.isArray(data.macchina) ? data.macchina[0] : data.macchina;
   const stadio = stadioCliente(data.stato);
   const idx = STADI.indexOf(stadio);
+
+  const { data: fotoRows } = await db
+    .from("foto_riparazione")
+    .select("id, storage_path, momento")
+    .eq("riparazione_id", data.id ?? "")
+    .order("created_at", { ascending: true });
+
+  const foto = await Promise.all((fotoRows ?? []).map(async (row: any) => {
+    const { data: signed } = await db.storage
+      .from("riparazioni-foto")
+      .createSignedUrl(row.storage_path, 60 * 60);
+    return { ...row, url: signed?.signedUrl ?? null };
+  }));
 
   return (
     <main className="mx-auto max-w-md px-4 pb-16 pt-10">
@@ -69,6 +82,24 @@ export default async function Tracking({ params }: { params: { token: string } }
           <p className="mt-6 text-sm text-coffee-400">
             {[macchina?.marca, macchina?.modello].filter(Boolean).join(" ")} · {cliente?.ragione_sociale}
           </p>
+
+          {foto.length > 0 && (
+            <div className="mt-6 border-t border-coffee-100 pt-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-coffee-400">Foto assistenza</p>
+              <div className="grid grid-cols-2 gap-3">
+                {foto.map((f: any) => (
+                  <a key={f.id} href={f.url ?? "#"} target="_blank" className="overflow-hidden rounded-xl border border-coffee-100 bg-coffee-50">
+                    {f.url ? (
+                      <img src={f.url} alt={`Foto ${f.momento}`} className="aspect-square w-full object-cover" />
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center text-xs text-coffee-400">Foto</div>
+                    )}
+                    <p className="px-2 py-1 text-xs font-semibold capitalize text-coffee-600">{f.momento}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <p className="mt-4 text-center text-xs text-coffee-400">

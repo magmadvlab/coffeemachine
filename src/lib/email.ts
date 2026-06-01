@@ -92,3 +92,35 @@ export async function inviaAggiornamentoStato(opts: {
     `,
   });
 }
+
+export async function inviaSollecitoRitiro(opts: {
+  to: string;
+  numeroScheda: string;
+  trackingUrl: string;
+  macchina?: string;
+}) {
+  const resend = getResend();
+  const text = [
+    `Promemoria per la scheda ${opts.numeroScheda}.`,
+    opts.macchina ? `Macchina: ${opts.macchina}` : "",
+    "La macchina risulta pronta per il ritiro.",
+    "",
+    `Puoi consultare lo stato qui: ${opts.trackingUrl}`,
+    "",
+    "Coffee Express s.r.l - S.P. Pisticci San Basilio - Tel. 0835 411386",
+  ].filter((line) => line !== "").join("\n");
+
+  return resend.emails.send({
+    from: fromAddress(),
+    to: opts.to,
+    subject: `Promemoria ritiro ${opts.numeroScheda} - Coffee Express`,
+    text,
+    html: `
+      <p>Promemoria per la scheda <strong>${escapeHtml(opts.numeroScheda)}</strong>.</p>
+      ${opts.macchina ? `<p><strong>Macchina:</strong> ${escapeHtml(opts.macchina)}</p>` : ""}
+      <p>La macchina risulta pronta per il ritiro.</p>
+      <p><a href="${escapeHtml(opts.trackingUrl)}">Consulta lo stato della riparazione</a></p>
+      <p>Coffee Express s.r.l<br />S.P. Pisticci San Basilio<br />Tel. 0835 411386</p>
+    `,
+  });
+}

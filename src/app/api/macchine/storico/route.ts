@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
   const { data: riparazioni, error: riparazioniError } = await db
     .from("riparazioni")
-    .select("id, numero_scheda, stato, data_ingresso, difetto_cliente, diagnosi_tecnico, importo_finale, importo_preventivo, macchina_id")
+    .select("id, numero_scheda, stato, data_ingresso, data_riparazione, difetto_cliente, diagnosi_tecnico, importo_finale, importo_preventivo, macchina_id, operatore:operatori(nome)")
     .in("macchina_id", ids)
     .order("data_ingresso", { ascending: false })
     .limit(10);
