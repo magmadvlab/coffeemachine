@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import StatusControl from "@/components/StatusControl";
 import { PhotoUploadForm } from "@/components/PhotoUploadForm";
 import { RepairWorkForm } from "@/components/RepairWorkForm";
+import { QuoteOutcome } from "@/components/QuoteOutcome";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
@@ -144,6 +145,7 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
               importoPreventivo={data.importo_preventivo}
               importoFinale={data.importo_finale}
             />
+            {data.stato === "attesa_preventivo" && <QuoteOutcome id={data.id} />}
           </Card>
 
           <Card className="sm:p-5">
