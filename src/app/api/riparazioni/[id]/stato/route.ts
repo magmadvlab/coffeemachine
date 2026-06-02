@@ -53,9 +53,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Operatore non collegato all'utente. Contatta l'amministratore." }, { status: 403 });
   }
 
-  if (operatore && ["riparata", "cliente_avvisato", "non_riparabile"].includes(body.stato)) {
-    patch.operatore_id = operatore.id;
-  }
+  // NB: non si sovrascrive operatore_id: la scheda resta in carico
+  // all'operatore che l'ha presa in custodia all'accettazione, fino alla consegna.
 
   const { data, error } = await db
     .from("riparazioni")

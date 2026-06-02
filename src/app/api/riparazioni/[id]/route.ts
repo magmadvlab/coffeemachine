@@ -34,7 +34,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     importo_finale: amount(body.importo_finale),
   };
 
-  if (operatore) patch.operatore_id = operatore.id;
+  // operatore_id NON viene aggiornato: la scheda resta in carico al custode (accettazione).
 
   const { data, error } = await db
     .from("riparazioni")

@@ -25,10 +25,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Operatore non collegato all'utente. Contatta l'amministratore." }, { status: 403 });
   }
 
+  // operatore_id non si tocca: la scheda resta in carico al custode (accettazione).
   const patch =
     azione === "accetta"
-      ? { preventivo_accettato: true, stato: "in_riparazione", operatore_id: operatore.id }
-      : { preventivo_accettato: false, stato: "abbandonata", operatore_id: operatore.id };
+      ? { preventivo_accettato: true, stato: "in_riparazione" }
+      : { preventivo_accettato: false, stato: "abbandonata" };
 
   const { data, error } = await db
     .from("riparazioni")
