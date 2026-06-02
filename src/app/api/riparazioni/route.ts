@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { buildRicevutaPDF } from "@/lib/pdf/build";
-import { inviaRicevuta } from "@/lib/email";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { getSessionOperatore } from "@/lib/operator-server";
+import { notificaRicevuta } from "@/lib/notifications";
 import type { NuovaAccettazione } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -184,12 +184,13 @@ export async function POST(req: Request) {
     });
   }
 
-  // 5) PDF + email (solo se c'e una email e il canale lo prevede)
+  // 5) PDF + notifica. Per ora l'unico provider attivo è email;
+  // WhatsApp/SMS sono predisposti e tracciati come non configurati.
   const appUrl = getPublicAppUrl();
   const trackingUrl = `${appUrl}/r/${rip!.token_pubblico}`;
   let emailInviata = false;
 
-  if (clienteInput.email) {
+  if (clienteInput.email || clienteInput.telefono) {
     const statoEsteticoMap: Record<string, string> = {
       buono: "Buono", graffi: "Graffi / segni (foto allegata)", danni: "Danni (foto allegata)",
     };
@@ -207,19 +208,15 @@ export async function POST(req: Request) {
       difetto: body.scheda.difetto_cliente,
       trackingUrl,
     });
-    try {
-      await inviaRicevuta({ to: clienteInput.email, numeroScheda: rip!.numero_scheda, pdf, trackingUrl });
-      emailInviata = true;
-      await db.from("notifiche").insert({
-        riparazione_id: rip!.id, tipo: "ricevuta", canale: "email",
-        destinatario: clienteInput.email, stato_invio: "inviata", inviata_at: new Date().toISOString(),
-      });
-    } catch (err: any) {
-      await db.from("notifiche").insert({
-        riparazione_id: rip!.id, tipo: "ricevuta", canale: "email",
-        destinatario: clienteInput.email, stato_invio: "errore", errore: String(err?.message || err),
-      });
-    }
+    const notifica = await notificaRicevuta({
+      db,
+      riparazioneId: rip!.id,
+      cliente: clienteInput,
+      numeroScheda: rip!.numero_scheda,
+      pdf,
+      trackingUrl,
+    });
+    emailInviata = notifica.canale === "email" && notifica.inviata;
   }
 
   return NextResponse.json({

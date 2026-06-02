@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
-import { getPublicAppUrl } from "@/lib/app-url";
-import { inviaAggiornamentoStato } from "@/lib/email";
+import { notificaAggiornamentoStato } from "@/lib/notifications";
 import { getSessionOperatore } from "@/lib/operator-server";
 import type { StatoRiparazione } from "@/lib/types";
 import { isLegacyRepairResidue } from "@/lib/legacy-repairs";
@@ -65,7 +64,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .update(patch)
     .eq("id", params.id)
     .select(`id, numero_scheda, token_pubblico, stato,
-      cliente:clienti(email),
+      cliente:clienti(email, telefono, canale_preferito),
       macchina:macchine(marca, modello, matricola)`)
     .single();
 
@@ -77,39 +76,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const macchina: any = Array.isArray(data.macchina) ? data.macchina[0] : data.macchina;
   let emailInviata = false;
 
-  if (cliente?.email && STATI_DA_NOTIFICARE.includes(body.stato)) {
-    const trackingUrl = `${getPublicAppUrl()}/r/${data.token_pubblico}`;
+  if (STATI_DA_NOTIFICARE.includes(body.stato)) {
     const macchinaLabel = [macchina?.marca, macchina?.modello, macchina?.matricola].filter(Boolean).join(" ");
-
-    try {
-      await inviaAggiornamentoStato({
-        to: cliente.email,
-        numeroScheda: data.numero_scheda,
-        stato: body.stato,
-        trackingUrl,
-        macchina: macchinaLabel || undefined,
-      });
-      emailInviata = true;
-      await db.from("notifiche").insert({
-        riparazione_id: data.id,
-        tipo: "aggiornamento_stato",
-        canale: "email",
-        destinatario: cliente.email,
-        stato_invio: "inviata",
-        inviata_at: new Date().toISOString(),
-        payload: { stato: body.stato, trackingUrl },
-      });
-    } catch (err: any) {
-      await db.from("notifiche").insert({
-        riparazione_id: data.id,
-        tipo: "aggiornamento_stato",
-        canale: "email",
-        destinatario: cliente.email,
-        stato_invio: "errore",
-        errore: String(err?.message || err),
-        payload: { stato: body.stato, trackingUrl },
-      });
-    }
+    const notifica = await notificaAggiornamentoStato({
+      db,
+      riparazioneId: data.id,
+      cliente,
+      numeroScheda: data.numero_scheda,
+      tokenPubblico: data.token_pubblico,
+      stato: body.stato,
+      macchina: macchinaLabel || undefined,
+    });
+    emailInviata = notifica.canale === "email" && notifica.inviata;
   }
 
   return NextResponse.json({ riparazione: data, emailInviata });

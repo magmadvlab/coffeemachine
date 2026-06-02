@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getPublicAppUrl } from "@/lib/app-url";
-import { inviaSollecitoRitiro } from "@/lib/email";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { isLegacyRepairResidue } from "@/lib/legacy-repairs";
+import { notificaSollecitoRitiro } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -18,7 +17,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   const { data, error } = await db
     .from("riparazioni")
     .select(`id, numero_scheda, token_pubblico, stato,
-      cliente:clienti(email),
+      cliente:clienti(email, telefono, canale_preferito),
       macchina:macchine(marca, modello, matricola)`)
     .eq("id", params.id)
     .single();
@@ -29,43 +28,24 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
   const cliente: any = Array.isArray(data.cliente) ? data.cliente[0] : data.cliente;
   const macchina: any = Array.isArray(data.macchina) ? data.macchina[0] : data.macchina;
-  if (!cliente?.email) {
-    return NextResponse.json({ error: "Cliente senza email" }, { status: 400 });
-  }
-
-  const trackingUrl = `${getPublicAppUrl()}/r/${data.token_pubblico}`;
   const macchinaLabel = [macchina?.marca, macchina?.modello, macchina?.matricola].filter(Boolean).join(" ");
+  const notifica = await notificaSollecitoRitiro({
+    db,
+    riparazioneId: data.id,
+    cliente,
+    numeroScheda: data.numero_scheda,
+    tokenPubblico: data.token_pubblico,
+    macchina: macchinaLabel || undefined,
+  });
 
-  try {
-    await inviaSollecitoRitiro({
-      to: cliente.email,
-      numeroScheda: data.numero_scheda,
-      trackingUrl,
-      macchina: macchinaLabel || undefined,
-    });
-
-    await db.from("notifiche").insert({
-      riparazione_id: data.id,
-      tipo: "sollecito",
-      canale: "email",
-      destinatario: cliente.email,
-      stato_invio: "inviata",
-      inviata_at: new Date().toISOString(),
-      payload: { trackingUrl },
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    await db.from("notifiche").insert({
-      riparazione_id: data.id,
-      tipo: "sollecito",
-      canale: "email",
-      destinatario: cliente.email,
-      stato_invio: "errore",
-      errore: String(err?.message || err),
-      payload: { trackingUrl },
-    });
-
-    return NextResponse.json({ error: String(err?.message || err) }, { status: 400 });
+  if (!notifica.inviata) {
+    return NextResponse.json({
+      error: notifica.motivo === "destinatario_mancante"
+        ? "Cliente senza recapito per il canale scelto"
+        : "Canale scelto non configurato",
+      canale: notifica.canale,
+    }, { status: 400 });
   }
+
+  return NextResponse.json({ ok: true, canale: notifica.canale });
 }
