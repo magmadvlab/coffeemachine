@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
+import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
 import { getSessionOperatore } from "@/lib/operator-server";
 
 export const runtime = "nodejs";
@@ -41,6 +42,49 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .update(patch)
     .eq("id", params.id)
     .select("id")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message, details: error.details, hint: error.hint }, { status: 400 });
+  }
+
+  return NextResponse.json({ riparazione: data });
+}
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  if (!hasServiceConfig()) {
+    return NextResponse.json({ error: "Configurazione Supabase incompleta" }, { status: 503 });
+  }
+
+  const user = await getCurrentUser();
+  if (!isAdminEmail(user?.email)) {
+    return NextResponse.json({ error: "Solo un amministratore può eliminare le schede." }, { status: 403 });
+  }
+
+  const db = createServiceClient();
+
+  const { data: fotoRows, error: fotoError } = await db
+    .from("foto_riparazione")
+    .select("storage_path")
+    .eq("riparazione_id", params.id);
+
+  if (fotoError) {
+    return NextResponse.json({ error: fotoError.message, details: fotoError.details, hint: fotoError.hint }, { status: 400 });
+  }
+
+  const storagePaths = (fotoRows ?? [])
+    .map((row: any) => row.storage_path)
+    .filter((path: unknown): path is string => typeof path === "string" && path.length > 0);
+
+  if (storagePaths.length > 0) {
+    await db.storage.from("riparazioni-foto").remove(storagePaths);
+  }
+
+  const { data, error } = await db
+    .from("riparazioni")
+    .delete()
+    .eq("id", params.id)
+    .select("id, numero_scheda")
     .single();
 
   if (error) {

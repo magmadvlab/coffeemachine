@@ -16,6 +16,8 @@ Esegui in ordine, nello SQL editor di Supabase:
 - `supabase/02_notifiche.sql` — numero scheda automatico, token, log notifiche, stadio cliente
 - `supabase/03_storage.sql` — bucket privato `riparazioni-foto` + policy
 - `supabase/04_possesso_preventivo.sql` — regime macchina (proprietà/comodato) e campi preventivo
+- `supabase/05_auth_operatori.sql` — collega operatori agli utenti Supabase Auth
+- `supabase/06_reset_operational_data.sql` — funzione admin per ripartire pulito senza cancellare operatori/Auth
 
 ## 2. Variabili d'ambiente
 Copia `.env.local.example` in `.env.local` e compila:

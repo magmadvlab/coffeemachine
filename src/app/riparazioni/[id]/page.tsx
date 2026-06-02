@@ -8,7 +8,9 @@ import { QuoteOutcome } from "@/components/QuoteOutcome";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
+import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
 import { stadioCliente, type StatoRiparazione } from "@/lib/types";
+import { DeleteRepairButton } from "@/components/DeleteRepairButton";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,8 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
   const macchina: any = Array.isArray(data.macchina) ? data.macchina[0] : data.macchina;
   const operatore: any = Array.isArray(data.operatore) ? data.operatore[0] : data.operatore;
   const stadio = stadioCliente(data.stato as StatoRiparazione);
+  const user = await getCurrentUser();
+  const admin = isAdminEmail(user?.email);
 
   const { data: notifiche } = await db
     .from("notifiche")
@@ -217,6 +221,13 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
               <a href={`/r/${data.token_pubblico}`} target="_blank" className="rounded-lg border border-coffee-200 px-3 py-2 font-semibold text-coffee-700">
                 Apri pagina cliente
               </a>
+              {admin && (
+                <DeleteRepairButton
+                  id={data.id}
+                  numeroScheda={data.numero_scheda}
+                  redirectTo="/"
+                />
+              )}
             </div>
           </Card>
 

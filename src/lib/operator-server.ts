@@ -20,27 +20,58 @@ export async function getSessionOperatore(db: any) {
   if (error) throw error;
   if (data?.[0]) return data[0];
 
-  // Auto-provisioning: ogni utente loggato (es. l'admin creato a mano in
-  // Supabase) viene collegato automaticamente a un operatore.
-  const nomeBase =
-    (user.user_metadata?.name as string | undefined)?.trim() ||
-    user.email?.split("@")[0] ||
-    "Operatore";
+  const metadataName = (user.user_metadata?.name as string | undefined)?.trim();
+  const email = user.email?.trim().toLowerCase();
+  const emailName = email?.split("@")[0];
+  const candidateNames = Array.from(new Set([
+    metadataName,
+    email,
+    emailName,
+  ].filter((name): name is string => Boolean(name))));
 
-  const { data: created } = await db
-    .from("operatori")
-    .insert({ nome: nomeBase, auth_user_id: user.id })
-    .select("id, nome, auth_user_id, attivo")
-    .single();
-  if (created) return created;
+  for (const nome of candidateNames) {
+    const { data: existing, error: existingError } = await db
+      .from("operatori")
+      .select("id, nome, auth_user_id, attivo")
+      .ilike("nome", nome)
+      .eq("attivo", true)
+      .is("auth_user_id", null)
+      .limit(1)
+      .maybeSingle();
+    if (existingError) throw existingError;
 
-  // fallback se il nome è già usato: aggiunge un suffisso univoco
-  const { data: retry } = await db
-    .from("operatori")
-    .insert({ nome: `${nomeBase}-${user.id.slice(0, 4)}`, auth_user_id: user.id })
-    .select("id, nome, auth_user_id, attivo")
-    .single();
-  return retry ?? null;
+    if (existing) {
+      const { data: linked, error: linkError } = await db
+        .from("operatori")
+        .update({ auth_user_id: user.id })
+        .eq("id", existing.id)
+        .is("auth_user_id", null)
+        .select("id, nome, auth_user_id, attivo")
+        .maybeSingle();
+      if (linkError) throw linkError;
+      if (linked) return linked;
+    }
+  }
+
+  // Auto-provisioning: ogni utente loggato viene collegato a un operatore.
+  // Il fallback con suffisso evita blocchi quando il nome è già presente.
+  const nomeBase = candidateNames[0] || "Operatore";
+  const namesToCreate = Array.from(new Set([
+    nomeBase,
+    `${nomeBase}-${user.id.slice(0, 4)}`,
+  ]));
+
+  for (const nome of namesToCreate) {
+    const { data: created, error: createError } = await db
+      .from("operatori")
+      .insert({ nome, auth_user_id: user.id })
+      .select("id, nome, auth_user_id, attivo")
+      .maybeSingle();
+    if (created) return created;
+    if (createError?.code !== "23505") throw createError;
+  }
+
+  return null;
 }
 
 export async function findOperatore(db: any, id?: string | null, nome?: string | null) {

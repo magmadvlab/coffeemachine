@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { AdminOperatorsForm } from "@/components/AdminOperatorsForm";
+import { AdminResetDataButton } from "@/components/AdminResetDataButton";
 import { Card } from "@/components/ui/Card";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
 import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
@@ -42,6 +43,14 @@ export default async function AdminOperatoriPage() {
       <Card className="mb-4 sm:p-5">
         <h2 className="mb-3 font-display text-lg font-semibold text-coffee-900">Nuovo operatore</h2>
         <AdminOperatorsForm />
+      </Card>
+
+      <Card className="mb-4 border-red-100 bg-red-50 sm:p-5">
+        <h2 className="mb-2 font-display text-lg font-semibold text-coffee-900">Reset dati</h2>
+        <p className="mb-3 text-sm text-red-800">
+          Elimina schede, clienti, macchine, notifiche e foto. Admin e operatori restano attivi.
+        </p>
+        <AdminResetDataButton />
       </Card>
 
       <Card className="sm:p-5">

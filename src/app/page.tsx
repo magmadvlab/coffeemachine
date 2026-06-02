@@ -9,6 +9,7 @@ import { FileText, ExternalLink, Plus, Coffee, Search, ArrowRight, Building2, Ba
 import { LogoutButton } from "@/components/LogoutButton";
 import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
 import { getSessionOperatore } from "@/lib/operator-server";
+import { DeleteRepairButton } from "@/components/DeleteRepairButton";
 
 function RegimeChip({ regime }: { regime?: string | null }) {
   if (!regime) return null;
@@ -239,6 +240,13 @@ export default async function Dashboard({ searchParams }: { searchParams?: { q?:
                     className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-arancio-dark">
                     <ArrowRight className="h-3.5 w-3.5 shrink-0" /> Dettagli
                   </Link>
+                  {admin && (
+                    <DeleteRepairButton
+                      id={r.id}
+                      numeroScheda={r.numero_scheda}
+                      compact
+                    />
+                  )}
                   <span className="ml-auto whitespace-nowrap text-coffee-400">
                     {new Date(r.data_ingresso).toLocaleDateString("it-IT")}
                   </span>
