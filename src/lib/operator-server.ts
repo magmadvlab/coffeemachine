@@ -1,4 +1,4 @@
-import { createServerSupabase } from "@/lib/supabase/auth-server";
+import { createServerSupabase, isAdminEmail } from "@/lib/supabase/auth-server";
 
 /**
  * Operatore corrispondente all'utente loggato (collegato via auth_user_id).
@@ -10,6 +10,9 @@ export async function getSessionOperatore(db: any) {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return null;
+
+  // L'admin è solo gestione: non è un operatore, non va collegato né elencato.
+  if (isAdminEmail(user.email)) return null;
 
   const { data, error } = await db
     .from("operatori")
