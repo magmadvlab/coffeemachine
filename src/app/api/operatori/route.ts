@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
 import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
+import { operatoreEmail, operatoreSlug } from "@/lib/operator-username";
 
 export const runtime = "nodejs";
 
@@ -35,14 +36,16 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const nome = (body.nome ?? "").trim();
-  const email = (body.email ?? "").trim().toLowerCase();
   const password = body.password ?? "";
-  if (!nome || !email || !password) {
-    return NextResponse.json({ error: "Nome, email e password sono obbligatori." }, { status: 400 });
+  if (!nome || !password) {
+    return NextResponse.json({ error: "Nome e password sono obbligatori." }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: "La password deve avere almeno 8 caratteri." }, { status: 400 });
+  if (!operatoreSlug(nome)) {
+    return NextResponse.json({ error: "Nome non valido (usa lettere o numeri)." }, { status: 400 });
   }
+
+  // Email tecnica generata dal nome: l'operatore accede col nome, non con l'email.
+  const email = operatoreEmail(nome);
 
   const db = createServiceClient();
 

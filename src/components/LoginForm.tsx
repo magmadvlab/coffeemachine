@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { loginIdentifier } from "@/lib/operator-username";
 
 export function LoginForm() {
   const router = useRouter();
@@ -22,11 +23,11 @@ export function LoginForm() {
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: loginIdentifier(email),
         password,
       });
       if (error) {
-        setErrore("Email o password non corretti.");
+        setErrore("Nome/email o password non corretti.");
         setLoading(false);
         return;
       }
@@ -45,10 +46,10 @@ export function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className={labelCls} htmlFor="email">Email</label>
+        <label className={labelCls} htmlFor="email">Nome operatore o email</label>
         <input
           id="email"
-          type="email"
+          type="text"
           autoComplete="username"
           required
           value={email}
