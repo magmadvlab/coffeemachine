@@ -18,8 +18,29 @@ export async function getSessionOperatore(db: any) {
     .eq("attivo", true)
     .limit(1);
   if (error) throw error;
+  if (data?.[0]) return data[0];
 
-  return data?.[0] ?? null;
+  // Auto-provisioning: ogni utente loggato (es. l'admin creato a mano in
+  // Supabase) viene collegato automaticamente a un operatore.
+  const nomeBase =
+    (user.user_metadata?.name as string | undefined)?.trim() ||
+    user.email?.split("@")[0] ||
+    "Operatore";
+
+  const { data: created } = await db
+    .from("operatori")
+    .insert({ nome: nomeBase, auth_user_id: user.id })
+    .select("id, nome, auth_user_id, attivo")
+    .single();
+  if (created) return created;
+
+  // fallback se il nome è già usato: aggiunge un suffisso univoco
+  const { data: retry } = await db
+    .from("operatori")
+    .insert({ nome: `${nomeBase}-${user.id.slice(0, 4)}`, auth_user_id: user.id })
+    .select("id, nome, auth_user_id, attivo")
+    .single();
+  return retry ?? null;
 }
 
 export async function findOperatore(db: any, id?: string | null, nome?: string | null) {
