@@ -155,7 +155,7 @@ export default async function Dashboard({ searchParams }: { searchParams?: { q?:
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             {admin && <OperatoriButton />}
-            <ClientiButton />
+            {admin && <ClientiButton />}
             <SollecitiButton />
             <NuovaSchedaButton />
             <LogoutButton />

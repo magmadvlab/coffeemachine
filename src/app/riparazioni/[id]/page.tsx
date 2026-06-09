@@ -5,6 +5,7 @@ import StatusControl from "@/components/StatusControl";
 import { PhotoUploadForm } from "@/components/PhotoUploadForm";
 import { RepairWorkForm } from "@/components/RepairWorkForm";
 import { QuoteOutcome } from "@/components/QuoteOutcome";
+import { RepairEditForm } from "@/components/RepairEditForm";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
@@ -33,7 +34,7 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
   const { data } = await db
     .from("riparazioni")
     .select(`id, numero_scheda, token_pubblico, stato, data_ingresso, data_riparazione, data_avviso_cliente, data_ritiro,
-      difetto_cliente, diagnosi_tecnico, stato_estetico, accessori, preventivo_richiesto, spesa_max_autorizzata, importo_preventivo, importo_finale,
+      difetto_cliente, diagnosi_tecnico, stato_estetico, accessori, note_stato, preventivo_richiesto, spesa_max_autorizzata, importo_preventivo, importo_finale,
       cliente:clienti(ragione_sociale, tipo, piva_cf, indirizzo, telefono, email, canale_preferito),
       macchina:macchine(id, marca, modello, matricola, tipologia, colore, regime_possesso),
       operatore:operatori(nome)`)
@@ -95,6 +96,23 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
+          <RepairEditForm
+            id={data.id}
+            cliente={cliente}
+            macchina={macchina}
+            scheda={{
+              stato_estetico: data.stato_estetico,
+              accessori: data.accessori,
+              note_stato: data.note_stato,
+              difetto_cliente: data.difetto_cliente,
+              preventivo_richiesto: data.preventivo_richiesto,
+              spesa_max_autorizzata: data.spesa_max_autorizzata,
+              importo_preventivo: data.importo_preventivo,
+              importo_finale: data.importo_finale,
+              diagnosi_tecnico: data.diagnosi_tecnico,
+            }}
+          />
+
           <Card className="sm:p-5">
             <h2 className="mb-3 font-display text-lg font-semibold text-coffee-900">Cliente</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -118,6 +136,7 @@ export default async function DettaglioRiparazione({ params }: { params: { id: s
               {field("Tipologia", macchina?.tipologia)}
               {field("Regime", macchina?.regime_possesso === "comodato_uso" ? "Comodato d'uso" : "Proprietà cliente")}
               {field("Stato estetico", data.stato_estetico)}
+              <div className="sm:col-span-2">{field("Note stato/accessori", data.note_stato)}</div>
             </div>
           </Card>
 

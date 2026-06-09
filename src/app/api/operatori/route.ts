@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
-import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
+import { requireAdminApi } from "@/lib/authz";
 import { operatoreEmail, operatoreSlug } from "@/lib/operator-username";
 
 export const runtime = "nodejs";
@@ -9,6 +9,9 @@ export async function GET() {
   if (!hasServiceConfig()) {
     return NextResponse.json({ operatori: [] });
   }
+
+  const forbidden = await requireAdminApi("Solo un amministratore può leggere gli operatori.");
+  if (forbidden) return forbidden;
 
   const db = createServiceClient();
   const { data, error } = await db
@@ -29,10 +32,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Configurazione Supabase incompleta" }, { status: 503 });
   }
 
-  const user = await getCurrentUser();
-  if (!isAdminEmail(user?.email)) {
-    return NextResponse.json({ error: "Solo un amministratore può creare operatori." }, { status: 403 });
-  }
+  const forbidden = await requireAdminApi("Solo un amministratore può creare operatori.");
+  if (forbidden) return forbidden;
 
   const body = await req.json();
   const nome = (body.nome ?? "").trim();

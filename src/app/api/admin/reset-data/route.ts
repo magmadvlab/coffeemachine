@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient, hasServiceConfig } from "@/lib/supabase/server";
-import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
+import { requireAdminApi } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
@@ -14,10 +14,8 @@ export async function POST() {
     return NextResponse.json({ error: "Configurazione Supabase incompleta" }, { status: 503 });
   }
 
-  const user = await getCurrentUser();
-  if (!isAdminEmail(user?.email)) {
-    return NextResponse.json({ error: "Solo un amministratore può azzerare i dati." }, { status: 403 });
-  }
+  const forbidden = await requireAdminApi("Solo un amministratore può azzerare i dati.");
+  if (forbidden) return forbidden;
 
   const db = createServiceClient();
 

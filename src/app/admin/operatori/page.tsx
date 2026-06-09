@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { AdminOperatorsForm } from "@/components/AdminOperatorsForm";
 import { Card } from "@/components/ui/Card";
 import { createServiceClient, missingSupabaseEnv } from "@/lib/supabase/server";
-import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
+import { requireAdminPage } from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOperatoriPage() {
-  const user = await getCurrentUser();
-  if (!isAdminEmail(user?.email)) redirect("/");
+  await requireAdminPage();
 
   const missingEnv = missingSupabaseEnv();
   const db = missingEnv.length === 0 ? createServiceClient() : null;

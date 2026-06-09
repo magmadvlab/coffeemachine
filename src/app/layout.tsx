@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { AppChrome } from "@/components/AppChrome";
+import { getCurrentUser, isAdminEmail } from "@/lib/supabase/auth-server";
 
 export const metadata: Metadata = {
   title: "Coffee Express · Officina",
@@ -29,11 +31,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+function hasAuthEnv() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = hasAuthEnv() ? await getCurrentUser() : null;
+  const isAdmin = isAdminEmail(user?.email);
+
   return (
     <html lang="it">
       <body className="font-sans text-coffee-900 antialiased">
-        {children}
+        <AppChrome isAdmin={isAdmin}>{children}</AppChrome>
         <InstallPrompt />
       </body>
     </html>
